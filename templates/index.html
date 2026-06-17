@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Release Notes Dashboard</title>
+    
+    <!-- Meta tags for SEO and appearance -->
+    <meta name="description" content="A premium real-time dashboard for BigQuery Release Notes, featuring filtering, search, and a built-in Twitter/X sharing composer.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22 width=%22100%22 height=%22100%22><text y=%220.9em%22 font-size=%2290%22>⚡</text></svg>">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="brand">
+                    <div class="brand-logo">
+                        <i data-lucide="database" class="logo-icon"></i>
+                        <span class="logo-pulse"></span>
+                    </div>
+                    <div class="brand-text">
+                        <h1>BigQuery Releases</h1>
+                        <p class="subtitle">Stay updated with Google BigQuery feed insights & compose shareable tweets.</p>
+                    </div>
+                </div>
+                
+                <div class="header-actions">
+                    <div class="last-updated-badge" id="last-updated-badge">
+                        <i data-lucide="clock" class="icon-sm"></i>
+                        <span id="last-updated-text">Not loaded yet</span>
+                    </div>
+                    <button class="btn btn-primary btn-refresh" id="btn-refresh" title="Refresh feed data">
+                        <i data-lucide="refresh-cw" id="refresh-icon"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Layout -->
+        <main class="app-main">
+            <!-- Left Panel: Feed -->
+            <section class="feed-section">
+                <!-- Search & Filters -->
+                <div class="controls-card">
+                    <div class="search-box">
+                        <i data-lucide="search" class="search-icon"></i>
+                        <input type="text" id="search-input" placeholder="Search updates by keywords, features, announcement..." aria-label="Search updates">
+                        <button class="clear-search-btn" id="clear-search" style="display: none;">
+                            <i data-lucide="x" class="icon-sm"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="filter-wrapper">
+                        <span class="filter-label">Filter:</span>
+                        <div class="filter-chips" id="filter-chips">
+                            <button class="chip active" data-filter="all">All <span class="count" id="count-all">0</span></button>
+                            <button class="chip" data-filter="feature">Features <span class="count" id="count-feature">0</span></button>
+                            <button class="chip" data-filter="announcement">Announcements <span class="count" id="count-announcement">0</span></button>
+                            <button class="chip" data-filter="deprecation">Deprecations <span class="count" id="count-deprecation">0</span></button>
+                            <button class="chip" data-filter="issue">Issues <span class="count" id="count-issue">0</span></button>
+                            <button class="chip" data-filter="update">Updates <span class="count" id="count-update">0</span></button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Feed Feed Loading/Empty/List State -->
+                <div class="feed-status" id="feed-status" style="display: none;">
+                    <!-- Loading state -->
+                    <div class="loading-state" id="loading-state">
+                        <div class="glow-spinner"></div>
+                        <p>Fetching BigQuery release notes...</p>
+                    </div>
+                    
+                    <!-- Empty state -->
+                    <div class="empty-state" id="empty-state" style="display: none;">
+                        <i data-lucide="inbox" class="empty-icon"></i>
+                        <h3>No release notes found</h3>
+                        <p>Try resetting filters or adjusting search queries.</p>
+                        <button class="btn btn-secondary" id="btn-reset-filters">Reset filters</button>
+                    </div>
+                </div>
+                
+                <div class="feed-list" id="feed-list">
+                    <!-- Cards will be dynamically injected here -->
+                </div>
+            </section>
+            
+            <!-- Right Panel: Tweet Composer Sidebar -->
+            <section class="composer-section" id="composer-sidebar">
+                <div class="composer-card">
+                    <div class="composer-header">
+                        <div class="composer-title">
+                            <i data-lucide="twitter" class="twitter-icon"></i>
+                            <h2>Tweet Composer</h2>
+                        </div>
+                        <button class="close-composer-btn" id="close-composer" aria-label="Close Composer">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Selected Update Summary -->
+                    <div class="selected-update-preview" id="selected-update-preview">
+                        <!-- Populated by JS -->
+                        <div class="placeholder-content">
+                            <i data-lucide="send" class="placeholder-icon"></i>
+                            <h3>No Update Selected</h3>
+                            <p>Choose any specific release note card from the feed and click <strong>"Select to Tweet"</strong> to draft your post here.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="composer-body" id="composer-body" style="display: none;">
+                        <label for="tweet-textarea" class="composer-label">Draft text</label>
+                        <div class="textarea-wrapper">
+                            <textarea id="tweet-textarea" maxlength="1000" rows="6" placeholder="What's happening?"></textarea>
+                            <div class="textarea-glow"></div>
+                        </div>
+                        
+                        <!-- Progress & Helpers -->
+                        <div class="composer-helpers">
+                            <div class="char-count-container">
+                                <svg class="progress-ring" width="36" height="36">
+                                    <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.06)" stroke-width="3" fill="transparent" r="14" cx="18" cy="18"/>
+                                    <circle class="progress-ring__circle" id="char-progress" stroke="#38BDF8" stroke-width="3.5" fill="transparent" r="14" cx="18" cy="18"/>
+                                </svg>
+                                <span class="char-count" id="char-count">280</span>
+                            </div>
+                            
+                            <div class="composer-actions-left">
+                                <button class="btn-tool" id="btn-add-hashtags" title="Add hashtags">
+                                    <i data-lucide="hash" class="icon-sm"></i> Add Tags
+                                </button>
+                                <button class="btn-tool" id="btn-reset-tweet" title="Reset to original template">
+                                    <i data-lucide="rotate-ccw" class="icon-sm"></i> Reset
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="composer-actions">
+                            <button class="btn btn-secondary btn-full" id="btn-copy-tweet">
+                                <i data-lucide="copy" id="copy-icon"></i>
+                                <span id="copy-btn-text">Copy Text</span>
+                            </button>
+                            <button class="btn btn-twitter btn-full" id="btn-send-tweet">
+                                <i data-lucide="external-link"></i>
+                                <span>Tweet on X</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Toast Notification -->
+        <div class="toast" id="toast">
+            <i data-lucide="check-circle-2" class="toast-icon" id="toast-icon"></i>
+            <span class="toast-message" id="toast-message">Copied to clipboard!</span>
+        </div>
+        
+    </div>
+
+    <!-- Custom Script -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
